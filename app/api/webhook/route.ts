@@ -1,12 +1,20 @@
-// app/api/webhook/route.ts
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 
+type ClerkUserCreatedEvent = {
+  data: {
+    id: string;
+    email_addresses: { email_address: string }[];
+    first_name: string;
+    last_name: string;
+  };
+  type: string;
+};
 
 export async function POST(req: Request) {
-    console.log("✅ Clerk webhook POST received"); 
+  console.log("✅ Clerk webhook POST received");
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
@@ -16,19 +24,19 @@ export async function POST(req: Request) {
   const payload = await req.text();
   const headerPayload = headers();
 
-  const svix_id = headerPayload.get('svix-id')!;
-  const svix_timestamp = headerPayload.get('svix-timestamp')!;
-  const svix_signature = headerPayload.get('svix-signature')!;
+  const svix_id = (await headerPayload).get('svix-id')!;
+  const svix_timestamp = (await headerPayload).get('svix-timestamp')!;
+  const svix_signature = (await headerPayload).get('svix-signature')!;
 
   const wh = new Webhook(WEBHOOK_SECRET);
 
-  let evt;
+  let evt: ClerkUserCreatedEvent;
   try {
     evt = wh.verify(payload, {
       'svix-id': svix_id,
       'svix-timestamp': svix_timestamp,
       'svix-signature': svix_signature,
-    });
+    }) as ClerkUserCreatedEvent;
   } catch (err) {
     console.error('Webhook verification failed', err);
     return new NextResponse('Invalid signature', { status: 400 });
